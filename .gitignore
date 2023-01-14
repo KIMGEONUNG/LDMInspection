@@ -1,0 +1,9 @@
+*.ckpt
+*.zip
+__pycache__
+*.pkl
+tmp.py
+src
+outputs
+*.egg-info
+.vimspector.json
