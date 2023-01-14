@@ -9,3 +9,4 @@ outputs
 .vimspector.json
 taming
 inputs
+tmp

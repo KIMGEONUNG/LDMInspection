@@ -56,9 +56,9 @@ class ReconDataset(Dataset):
 def main():
     targets = [  # Types of autoencoder models
         "vq-f4",
-        "vq-f4-noattn",
+        # "vq-f4-noattn",
         "vq-f8",
-        "vq-f8-n256",
+        # "vq-f8-n256",
         "vq-f16",
         "kl-f8",
         "kl-f32",
