@@ -7,3 +7,5 @@ src
 outputs
 *.egg-info
 .vimspector.json
+taming
+inputs
