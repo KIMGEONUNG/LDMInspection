@@ -10,3 +10,5 @@ outputs
 taming
 inputs
 tmp
+logs
+imagenet

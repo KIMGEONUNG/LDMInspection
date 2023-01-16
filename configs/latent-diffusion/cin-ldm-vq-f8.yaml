@@ -70,17 +70,19 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 64
+    batch_size: 32 
     num_workers: 12
     wrap: false
     train:
       target: ldm.data.imagenet.ImageNetTrain
       params:
+        data_root: imagenet
         config:
           size: 256
     validation:
       target: ldm.data.imagenet.ImageNetValidation
       params:
+        data_root: imagenet
         config:
           size: 256
 
