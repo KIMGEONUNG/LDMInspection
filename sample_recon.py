@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
+import argparse
 from ldm.util import instantiate_from_config
 import torch
 import os
 import torch, torchvision
 from torch.utils.data import Dataset
 from omegaconf import OmegaConf
-from torchvision.transforms import ToPILImage, ToTensor
+from torchvision.transforms import ToPILImage, ToTensor, Resize
 from glob import glob
 from PIL import Image
-from pycomar.images import show_img, show3plt
+import matplotlib.pyplot as plt
+import numpy as np
+# from pycomar.images import show_img, show3plt
 
 
 def load_model_from_config(config, ckpt):
@@ -29,7 +32,7 @@ def extract_name(path: str):
 
 class ReconDataset(Dataset):
 
-    def __init__(self, root="inputs/recon", dev="cuda:0"):
+    def __init__(self, root="inputs/openimage", dev="cuda:0"):
         self.root = root
         self.samples = sorted(glob(os.path.join(root, "*")))
         self.totensor = ToTensor()
@@ -52,38 +55,79 @@ class ReconDataset(Dataset):
             img = Image.open(f)
             return img.convert('RGB')
 
+
+def parse():
+    p = argparse.ArgumentParser()
+    p.add_argument('-i', '--path_input_dir', default='inputs/openimage')
+    p.add_argument('-o',
+                   '--path_output_dir',
+                   default='outputs/recon_openimageB')
+    p.add_argument('--one_file', action='store_true')
+    p.add_argument('--error_map', action='store_true')
+    p.add_argument(
+        '--targets',
+        nargs='+',
+        type=str,
+        default=[
+            # "vq-f4",
+            # "vq-f4-noattn",
+            # "vq-f8",
+            # "vq-f8-n256",
+            # "vq-f16",
+            "kl-f8",
+            # "kl-f32",
+            # "kl-f16",
+            # "kl-f4",
+        ],
+    )
+    return p.parse_args()
+
+
 @torch.no_grad()
 def main():
-    targets = [  # Types of autoencoder models
-        "vq-f4",
-        # "vq-f4-noattn",
-        "vq-f8",
-        # "vq-f8-n256",
-        "vq-f16",
-        "kl-f8",
-        "kl-f32",
-        "kl-f16",
-        "kl-f4",
-    ]
-    path_output_dir = "outputs/recon"
+    args = parse()
+    os.makedirs(args.path_output_dir, exist_ok=True)
 
-    dataset = ReconDataset()
-    for target in targets:
+    dataset = ReconDataset(args.path_input_dir)
+    for target in args.targets:
         path_config = "models/first_stage_models/{}/config.yaml".format(target)
         path_model = "models/first_stage_models/{}/model.ckpt".format(target)
         config = OmegaConf.load(path_config)
         model = load_model_from_config(config, path_model)
         for x, img, name in dataset:
-            x_hat, _ = model(x)
-            x_hat = x_hat.add(1).div(2).clamp(0, 1)[0]
-            x_hat_img = ToPILImage()(x_hat)
+            x_hat, _ = model(x, sample_posterior=True)
 
-            path_orig = os.path.join(path_output_dir, "{}.jpg".format(name))
-            path_hat = os.path.join(path_output_dir,
-                                    "{}_{}.jpg".format(name, target))
-            img.save(path_orig, quality=100, subsampling=0)
-            x_hat_img.save(path_hat, quality=100, subsampling=0)
+            # CORRECT IMAGE SIZES
+            x, x_hat = x[0].cpu(), x_hat[0].cpu()
+            x = Resize(x_hat.shape[-2:])(x)
+
+            diff = torch.tensor([])
+            if args.error_map:
+                diff = (x - x_hat).abs().div(2).mean(-3).mul(255).to(torch.int)
+                colormap_name = 'jet'
+                cmap = plt.get_cmap(colormap_name)
+                diff = cmap(diff)[..., :3]
+                diff = diff * 2 - 1
+                diff = torch.Tensor(diff).permute(2, 0, 1)
+
+            if args.one_file:
+                output = torch.cat([x, x_hat, diff], dim=-1)
+                output = output.add(1).div(2).clamp(0, 1)
+                output = ToPILImage()(output)
+                path_hat = os.path.join(args.path_output_dir,
+                                        "{}_{}.jpg".format(name, target))
+                output.save(path_hat, quality=100, subsampling=0)
+            else:
+                x_hat = x_hat.add(1).div(2).clamp(0, 1)
+                x_hat_img = ToPILImage()(x_hat)
+                path_orig = os.path.join(args.path_output_dir,
+                                         "{}.jpg".format(name))
+                path_hat = os.path.join(args.path_output_dir,
+                                        "{}_{}.jpg".format(name, target))
+                img.save(path_orig, quality=100, subsampling=0)
+                x_hat_img.save(path_hat, quality=100, subsampling=0)
         del model
+
 
 if __name__ == "__main__":
     main()

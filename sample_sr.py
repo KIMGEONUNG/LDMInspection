@@ -58,6 +58,7 @@ def run(model,
 
     height, width = example["image"].shape[1:3]
     split_input = height >= 128 and width >= 128
+    split_input = False
 
     if split_input:
         ks = 128
@@ -219,7 +220,7 @@ def make_convolutional_sample(batch,
 
         sample, intermediates = convsample_ddim(
             model,
-            c,
+            c,  # low resolution
             steps=custom_steps,
             shape=z.shape,
             eta=eta,
@@ -271,31 +272,33 @@ def extract_name(path: str):
 
 if __name__ == "__main__":
     # SET TARGETS
-    path = "data/example_conditioning/superresolution/sample_0.jpg"
     path_dir = "outputs/sr/"
-    paths = glob("inputs/LRs/*")
+    paths = glob("inputs/LRs_tmp/ba*64*")
     names = [extract_name(p) for p in paths]
-    custom_steps=50
+    custom_steps = [50, 100, 200]
 
     # CONFIG AND MODEL
     config = OmegaConf.load("models/ldm/bsr_sr/config.yaml")
     model = load_model_from_config(config, "models/ldm/bsr_sr/model.ckpt")
 
-    for path, name in zip(paths, names):
-        logs = run(
-            model=model,
-            selected_path=path,
-            task="superresolution",
-            custom_steps=custom_steps,
-        )
-        for key, val in logs.items():
-            if not isinstance(val, torch.Tensor):
-                print(key, val)
-                continue
-            if key in ["input", "sample"]:
-                if key == "sample":
-                    val = (val + 1) / 2
-                    val = val.clamp(0, 1)
-                path_file = os.path.join(path_dir, name + "_" + key + ".jpg")
-                img = ToPILImage()(val[0])
-                img.save(path_file, quality=100, subsampling=0)
+    for step in custom_steps:
+        for path, name in zip(paths, names):
+            logs = run(
+                model=model,
+                selected_path=path,
+                task="superresolution",
+                custom_steps=step,
+            )
+            for key, val in logs.items():
+                if not isinstance(val, torch.Tensor):
+                    print(key, val)
+                    continue
+                if key in ["input", "sample"]:
+                    if key == "sample":
+                        val = (val + 1) / 2
+                        val = val.clamp(0, 1)
+                    path_file = os.path.join(
+                        path_dir,
+                        name + "_" + key + "_" + "%03d" % step + ".jpg")
+                    img = ToPILImage()(val[0])
+                    img.save(path_file, quality=100, subsampling=0)

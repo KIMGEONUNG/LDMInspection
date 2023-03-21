@@ -17,7 +17,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 64
-        in_channels: 6
+        in_channels: 6 # For concat of noise and input image
         out_channels: 3
         model_channels: 160
         attention_resolutions:
