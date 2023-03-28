@@ -83,6 +83,10 @@ def parse():
     return p.parse_args()
 
 
+def num_param(model):
+    return sum(p.numel() for p in model.parameters())
+
+
 @torch.no_grad()
 def main():
     args = parse()
@@ -94,6 +98,9 @@ def main():
         path_model = "models/first_stage_models/{}/model.ckpt".format(target)
         config = OmegaConf.load(path_config)
         model = load_model_from_config(config, path_model)
+        print("Num parameter of model  : ", num_param(model))
+        print("Num parameter of encoder: ", num_param(model.encoder))
+        print("Num parameter of decoder: ", num_param(model.decoder))
         for x, img, name in dataset:
             x_hat, _ = model(x, sample_posterior=True)
 
