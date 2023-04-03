@@ -12,3 +12,6 @@ inputs
 tmp
 logs
 imagenet
+DATASET
+data
+output_baseline
