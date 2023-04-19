@@ -273,11 +273,11 @@ class SetupCallback(Callback):
         self.config = config
         self.lightning_config = lightning_config
 
-    def on_keyboard_interrupt(self, trainer, pl_module):
-        if trainer.global_rank == 0:
-            print("Summoning checkpoint.")
-            ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
-            trainer.save_checkpoint(ckpt_path)
+    # def on_keyboard_interrupt(self, trainer, pl_module):
+    #     if trainer.global_rank == 0:
+    #         print("Summoning checkpoint.")
+    #         ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
+    #         trainer.save_checkpoint(ckpt_path)
 
     def on_pretrain_routine_start(self, trainer, pl_module):
         if trainer.global_rank == 0:
