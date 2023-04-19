@@ -39,6 +39,7 @@ data:
         filter_d: 15
         filter_sigmaColor: 70
         filter_sigmaSpace: 70
+        target: bilateral
     validation:
       target: ldm.data.openimage.FusionOpenImageDataset
       params:
@@ -49,7 +50,7 @@ data:
         filter_d: 15
         filter_sigmaColor: 70
         filter_sigmaSpace: 70
-
+        target: bilateral
 lightning:
   callbacks:
     image_logger:

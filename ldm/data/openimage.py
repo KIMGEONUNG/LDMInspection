@@ -11,6 +11,8 @@ from einops import rearrange
 from typing import Any
 import torch
 import torchvision
+from torchvision.transforms import ToTensor, ToPILImage, GaussianBlur
+import random
 
 
 class FusionOpenImageDataset(Dataset):
@@ -22,6 +24,7 @@ class FusionOpenImageDataset(Dataset):
         splits=(0.9, 0.05, 0.05),
         resize_res: int = 512,
         size_crop: int = 512,
+        target: str = "bilater",
         filter_d=10,
         filter_sigmaColor=50,
         filter_sigmaSpace=50,
@@ -53,8 +56,30 @@ class FusionOpenImageDataset(Dataset):
         idx_1 = math.floor(split_1 * len(self.seeds))
         self.seeds = self.seeds[idx_0:idx_1]
 
+        if target == "bilateral":
+            self.fn=self.bilateral_filter
+        elif target == "noise":
+            self.fn=self.noise
+        elif target == "blur":
+            self.fn=GaussianBlur(5, (0.1, 3.0))
+        else:
+            raise
+
     def __len__(self) -> int:
         return len(self.seeds)
+
+    def noise(self, x):
+        sigma = random.random() / 2
+        x = ToTensor()(x)
+        n = torch.randn_like(x)
+        n.normal_(mean=0, std=sigma)
+        x = x + n
+        x = x.clamp(0, 1)
+        x = ToPILImage()(x)
+        return x
+
+    def downsample(self, x):
+        raise
 
     def bilateral_filter(
         self,
@@ -77,12 +102,12 @@ class FusionOpenImageDataset(Dataset):
         img_gt = Image.open(path).convert('RGB')  # GT
         img_gt = self.sizing(img_gt)
 
-        img_lf = self.bilateral_filter(img_gt)
+        img_input = self.fn(img_gt)
 
-        img_lf = np.array(img_lf).astype(np.float32) / 255 * 2 - 1
+        img_input = np.array(img_input).astype(np.float32) / 255 * 2 - 1
         img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
 
-        return dict(image=img_gt, lf=img_lf)
+        return dict(image=img_gt, lf=img_input)
 
 
 class FusionOpenImageFeatDataset(Dataset):
