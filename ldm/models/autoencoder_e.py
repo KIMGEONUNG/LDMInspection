@@ -13,6 +13,9 @@ from copy import copy
 
 
 class AutoencoderKL_E(pl.LightningModule):
+    """
+    Goal: train shortcut network E_{\psi}
+    """
 
     def __init__(
         self,

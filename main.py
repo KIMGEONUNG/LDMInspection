@@ -783,7 +783,7 @@ if __name__ == "__main__":
             try:
                 trainer.fit(model, data)
             except Exception:
-                melk()
+                # melk()
                 raise
         if not opt.no_test and not trainer.interrupted:
             trainer.test(model, data)
