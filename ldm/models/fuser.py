@@ -21,6 +21,207 @@ def zero_module(module):
     return module
 
 
+class FusionKL8Feat(pl.LightningModule):
+
+    def __init__(
+        self,
+        ddconfig,
+        lossconfig,
+        embed_dim,
+        ckpt_path=None,
+        ignore_keys=[],
+        image_key="image",
+        colorize_nlabels=None,
+        monitor=None,
+    ):
+        super().__init__()
+        self.image_key = image_key
+        self.encoder = EncoderF(**ddconfig)
+        self.decoder = DecoderF(**ddconfig)
+        self.loss = instantiate_from_config(lossconfig)
+        assert ddconfig["double_z"]
+        self.quant_conv = torch.nn.Conv2d(2 * ddconfig["z_channels"],
+                                          2 * embed_dim, 1)
+        self.post_quant_conv = torch.nn.Conv2d(embed_dim,
+                                               ddconfig["z_channels"], 1)
+        self.embed_dim = embed_dim
+        if colorize_nlabels is not None:
+            assert type(colorize_nlabels) == int
+            self.register_buffer("colorize",
+                                 torch.randn(3, colorize_nlabels, 1, 1))
+        if monitor is not None:
+            self.monitor = monitor
+        if ckpt_path is not None:
+            self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
+
+    def init_from_ckpt(self, path, ignore_keys=list()):
+        sd = torch.load(path, map_location="cpu")["state_dict"]
+        keys = list(sd.keys())
+        for k in keys:
+            for ik in ignore_keys:
+                if k.startswith(ik):
+                    print("Deleting key {} from state_dict.".format(k))
+                    del sd[k]
+        self.load_state_dict(sd, strict=False)
+        print(f"Restored from {path}")
+
+    def encode(self, x):
+        h, intermids = self.encoder(x)
+        moments = self.quant_conv(h)
+        posterior = DiagonalGaussianDistribution(moments)
+        return posterior, intermids
+
+    def decode(self, z, intermids):
+        z = self.post_quant_conv(z)
+        dec = self.decoder(z, intermids)
+        return dec
+
+    def forward(self, img_lf, z, sample_posterior=True):
+        with torch.no_grad():
+            posterior, intermids = self.encode(img_lf)
+        dec = self.decode(z, intermids)
+        return dec, posterior, intermids
+
+    def get_input(self, batch, k):
+        x = batch[k]
+        if k == "feat":
+            return x.to(memory_format=torch.contiguous_format)
+        if len(x.shape) == 3:
+            x = x[..., None]
+        x = x.permute(0, 3, 1,
+                      2).to(memory_format=torch.contiguous_format).float()
+        return x
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        img_gt = self.get_input(batch, self.image_key)
+        img_lf = self.get_input(batch, "lf")
+        z = self.get_input(batch, "feat")
+        reconstructions, posterior, intermids = self(img_lf, z)
+
+        if optimizer_idx == 0:
+            # train encoder+decoder+logvar
+            aeloss, log_dict_ae = self.loss(img_gt,
+                                            reconstructions,
+                                            posterior,
+                                            optimizer_idx,
+                                            self.global_step,
+                                            last_layer=self.get_last_layer(),
+                                            split="train")
+            self.log("aeloss",
+                     aeloss,
+                     prog_bar=True,
+                     logger=True,
+                     on_step=True,
+                     on_epoch=True)
+            self.log_dict(log_dict_ae,
+                          prog_bar=False,
+                          logger=True,
+                          on_step=True,
+                          on_epoch=False)
+            return aeloss
+
+        if optimizer_idx == 1:
+            # train the discriminator
+            discloss, log_dict_disc = self.loss(
+                img_gt,
+                reconstructions,
+                posterior,
+                optimizer_idx,
+                self.global_step,
+                last_layer=self.get_last_layer(),
+                split="train")
+
+            self.log("discloss",
+                     discloss,
+                     prog_bar=True,
+                     logger=True,
+                     on_step=True,
+                     on_epoch=True)
+            self.log_dict(log_dict_disc,
+                          prog_bar=False,
+                          logger=True,
+                          on_step=True,
+                          on_epoch=False)
+            return discloss
+
+    def validation_step(self, batch, batch_idx):
+        img_gt = self.get_input(batch, self.image_key)
+        img_lf = self.get_input(batch, "lf")
+        z = self.get_input(batch, "feat")
+        reconstructions, posterior, intermids = self(img_lf, z)
+
+        aeloss, log_dict_ae = self.loss(img_gt,
+                                        reconstructions,
+                                        posterior,
+                                        0,
+                                        self.global_step,
+                                        last_layer=self.get_last_layer(),
+                                        split="val")
+
+        discloss, log_dict_disc = self.loss(img_gt,
+                                            reconstructions,
+                                            posterior,
+                                            1,
+                                            self.global_step,
+                                            last_layer=self.get_last_layer(),
+                                            split="val")
+
+        self.log("val/rec_loss", log_dict_ae["val/rec_loss"])
+        self.log_dict(log_dict_ae)
+        self.log_dict(log_dict_disc)
+        return self.log_dict
+
+    def configure_optimizers(self):
+        lr = self.learning_rate
+        opt_ae = torch.optim.Adam(
+            # list(self.encoder.parameters()) +
+            # list(self.quant_conv.parameters()) +
+            list(self.decoder.parameters()) +
+            list(self.post_quant_conv.parameters()),
+            lr=lr,
+            betas=(0.5, 0.9),
+        )
+        opt_disc = torch.optim.Adam(self.loss.discriminator.parameters(),
+                                    lr=lr,
+                                    betas=(0.5, 0.9))
+        return [opt_ae, opt_disc], []
+
+    def get_last_layer(self):
+        return self.decoder.conv_out.weight
+
+    @torch.no_grad()
+    def log_images(self, batch, only_inputs=False, **kwargs):
+        log = dict()
+        x = self.get_input(batch, self.image_key)
+        lf = self.get_input(batch, "lf")
+        feat = self.get_input(batch, "feat")
+
+        x = x.to(self.device)
+        lf = lf.to(self.device)
+        feat = feat.to(self.device)
+
+        if not only_inputs:
+            xrec, posterior, intermids = self(lf, feat)
+            if x.shape[1] > 3:
+                # colorize with random projection
+                assert xrec.shape[1] > 3
+                x = self.to_rgb(x)
+                xrec = self.to_rgb(xrec)
+            log["C_recon"] = xrec
+        log["A_lf"] = lf
+        log["B_gt"] = x
+        return log
+
+    def to_rgb(self, x):
+        assert self.image_key == "segmentation"
+        if not hasattr(self, "colorize"):
+            self.register_buffer("colorize",
+                                 torch.randn(3, x.shape[1], 1, 1).to(x))
+        x = F.conv2d(x, weight=self.colorize)
+        x = 2. * (x - x.min()) / (x.max() - x.min()) - 1.
+        return x
+
+
 class FusionKL8(pl.LightningModule):
 
     def __init__(
@@ -206,8 +407,8 @@ class FusionKL8(pl.LightningModule):
                 assert xrec.shape[1] > 3
                 x = self.to_rgb(x)
                 xrec = self.to_rgb(xrec)
-            log["D_samples"] = self.decode(torch.randn_like(posterior.sample()),
-                                         intermids)
+            log["D_samples"] = self.decode(
+                torch.randn_like(posterior.sample()), intermids)
             log["C_recon"] = xrec
         log["A_lf"] = lf
         log["B_gt"] = x
@@ -380,23 +581,12 @@ class DecoderF(nn.Module):
                                        padding=1)
 
         # fusions
-        self.fusion_1 = torch.nn.Conv2d(128,
-                            128,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1)
+        self.fusion_1 = zero_module(
+            torch.nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1))
         self.fusion_2 = zero_module(
-            torch.nn.Conv2d(128,
-                            256,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1))
+            torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1))
         self.fusion_3 = zero_module(
-            torch.nn.Conv2d(256,
-                            512,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1))
+            torch.nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1))
 
         # middle
         self.mid = nn.Module()

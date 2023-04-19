@@ -83,3 +83,51 @@ class FusionOpenImageDataset(Dataset):
         img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
 
         return dict(image=img_gt, lf=img_lf)
+
+
+class FusionOpenImageFeatDataset(Dataset):
+
+    def __init__(
+            self,
+            path: str,
+            split: str = "train",
+            splits=(0.9, 0.05, 0.05),
+    ):
+        assert split in ("train", "val", "test")
+        assert sum(splits) == 1
+        self.path = path
+
+        with open(Path(self.path, "seeds.json")) as f:
+            self.seeds = json.load(f)
+
+        split_0, split_1 = {
+            "train": (0.0, splits[0]),
+            "val": (splits[0], splits[0] + splits[1]),
+            "test": (splits[0] + splits[1], 1.0),
+        }[split]
+
+        idx_0 = math.floor(split_0 * len(self.seeds))
+        idx_1 = math.floor(split_1 * len(self.seeds))
+        self.seeds = self.seeds[idx_0:idx_1]
+
+    def __len__(self) -> int:
+        return len(self.seeds)
+
+    def __getitem__(self, i: int):
+        name = self.seeds[i]
+        path_lf = f"transform_lf/{name}.jpg"
+        path_gt = f"transform/{name}.jpg"
+        path_feat = f"restored_feat/{name}.pt"
+
+        path_lf = join(self.path, path_lf)
+        path_gt = join(self.path, path_gt)
+        path_feat = join(self.path, path_feat)
+
+        img_gt = Image.open(path_gt).convert('RGB')  # GT
+        img_lf = Image.open(path_lf).convert('RGB')  # LF, actually bf
+        feat = torch.load(path_feat)[0]
+
+        img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
+        img_lf = np.array(img_lf).astype(np.float32) / 255 * 2 - 1
+
+        return dict(image=img_gt, lf=img_lf, feat=feat)
