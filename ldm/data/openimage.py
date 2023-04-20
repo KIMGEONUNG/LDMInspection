@@ -61,7 +61,7 @@ class FusionOpenImageDataset(Dataset):
         elif target == "noise":
             self.fn=self.noise
         elif target == "blur":
-            self.fn=GaussianBlur(5, (0.1, 3.0))
+            self.fn=GaussianBlur(7, (5.0, 7.0))
         else:
             raise
 
