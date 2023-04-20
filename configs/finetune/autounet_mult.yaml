@@ -44,7 +44,7 @@ data:
         blur_kenel: 7
         blur_sigma_min: 5.0
         blur_sigma_max: 7.0
-        targets: [noise]
+        targets: [blur, noise]
     validation:
       target: ldm.data.openimage.FusionOpenImageDataset
       params:
@@ -60,7 +60,7 @@ data:
         blur_kenel: 7
         blur_sigma_min: 5.0
         blur_sigma_max: 7.0
-        targets: [noise]
+        targets: [blur, noise]
 lightning:
   callbacks:
     image_logger:

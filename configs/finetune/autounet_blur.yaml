@@ -39,7 +39,12 @@ data:
         filter_d: 15
         filter_sigmaColor: 70
         filter_sigmaSpace: 70
-        target: blur
+        noise_min: 0.2
+        noise_max: 0.5
+        blur_kenel: 7
+        blur_sigma_min: 5.0
+        blur_sigma_max: 7.0
+        targets: [blur]
     validation:
       target: ldm.data.openimage.FusionOpenImageDataset
       params:
@@ -50,7 +55,12 @@ data:
         filter_d: 15
         filter_sigmaColor: 70
         filter_sigmaSpace: 70
-        target: blur
+        noise_min: 0.2
+        noise_max: 0.5
+        blur_kenel: 7
+        blur_sigma_min: 5.0
+        blur_sigma_max: 7.0
+        targets: [blur]
 lightning:
   callbacks:
     image_logger:

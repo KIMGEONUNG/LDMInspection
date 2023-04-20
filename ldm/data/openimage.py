@@ -11,7 +11,7 @@ from einops import rearrange
 from typing import Any
 import torch
 import torchvision
-from torchvision.transforms import ToTensor, ToPILImage, GaussianBlur
+from torchvision.transforms import ToTensor, ToPILImage, GaussianBlur, Compose
 import random
 
 
@@ -24,10 +24,15 @@ class FusionOpenImageDataset(Dataset):
         splits=(0.9, 0.05, 0.05),
         resize_res: int = 512,
         size_crop: int = 512,
-        target: str = "bilater",
+        targets: str = ["bilateral"],
         filter_d=10,
         filter_sigmaColor=50,
         filter_sigmaSpace=50,
+        noise_min=0.2,
+        noise_max=0.5,
+        blur_kenel=7,
+        blur_sigma_min=5.0,
+        blur_sigma_max=7.0,
     ):
         assert split in ("train", "val", "test")
         assert sum(splits) == 1
@@ -38,6 +43,13 @@ class FusionOpenImageDataset(Dataset):
         self.filter_d = filter_d
         self.filter_sigmaColor = filter_sigmaColor
         self.filter_sigmaSpace = filter_sigmaSpace
+
+        self.noise_min = noise_min
+        self.noise_max = noise_max
+
+        self.blur_kenel = blur_kenel
+        self.blur_sigma_min = blur_sigma_min
+        self.blur_sigma_max = blur_sigma_max
 
         self.sizing = Compose(
             [Resize(self.resize_res),
@@ -56,20 +68,26 @@ class FusionOpenImageDataset(Dataset):
         idx_1 = math.floor(split_1 * len(self.seeds))
         self.seeds = self.seeds[idx_0:idx_1]
 
-        if target == "bilateral":
-            self.fn=self.bilateral_filter
-        elif target == "noise":
-            self.fn=self.noise
-        elif target == "blur":
-            self.fn=GaussianBlur(7, (5.0, 7.0))
-        else:
-            raise
+        self.fn = []
+        for target in targets:
+            if target == "bilateral":
+                self.fn.append(self.bilateral_filter)
+            elif target == "noise":
+                self.fn.append(self.noise)
+            elif target == "blur":
+                self.fn.append(
+                    GaussianBlur(blur_kenel, (blur_sigma_min, blur_sigma_max)))
+            else:
+                raise
+
+        self.fn = Compose(self.fn)
 
     def __len__(self) -> int:
         return len(self.seeds)
 
     def noise(self, x):
-        sigma = random.random() / 2
+        sigma = self.noise_min + random.random() * (self.noise_max -
+                                                    self.noise_min)
         x = ToTensor()(x)
         n = torch.randn_like(x)
         n.normal_(mean=0, std=sigma)
