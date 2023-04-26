@@ -9,7 +9,7 @@ from ldm.modules.diffusionmodules.model import Encoder, Decoder
 from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 
 from ldm.util import instantiate_from_config
-from copy import copy
+from copy import copy, deepcopy
 
 
 class ShortcutNet(pl.LightningModule):
@@ -45,8 +45,8 @@ class ShortcutNet(pl.LightningModule):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
-        self.encoder_fix = copy(self.encoder)
-        self.quant_conv_fix = copy(self.quant_conv)
+        self.encoder_fix = deepcopy(self.encoder)
+        self.quant_conv_fix = deepcopy(self.quant_conv)
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         sd = torch.load(path, map_location="cpu")["state_dict"]
@@ -76,7 +76,7 @@ class ShortcutNet(pl.LightningModule):
         dec = self.decoder(z)
         return dec
 
-    def forward_efix(self, input, sample_posterior=False):
+    def forward_efix(self, input, sample_posterior=True):
         posterior = self.encode_fix(input)
         if sample_posterior:
             z = posterior.sample()
@@ -171,7 +171,7 @@ class ShortcutNet(pl.LightningModule):
         x = x.to(self.device)
         lf = lf.to(self.device)
 
-        output, posterior = self(lf)
+        output, _ = self(lf)
         recon, _ = self.forward_efix(x)
         log["D_Recon"] = recon
         log["C_Output"] = output
