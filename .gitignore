@@ -13,5 +13,5 @@ tmp
 logs
 imagenet
 DATASET
-./data
+data/
 output_baseline
