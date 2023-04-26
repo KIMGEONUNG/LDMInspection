@@ -15,6 +15,61 @@ from torchvision.transforms import ToTensor, ToPILImage, GaussianBlur, Compose
 import random
 
 
+class FusionOpenImagePairDataset(Dataset):
+
+    def __init__(
+        self,
+        path: str,
+        split: str = "train",
+        splits=(0.95, 0.05, 0.00),
+        resize_res: int = 512,
+        size_crop: int = 512,
+    ):
+        assert split in ("train", "val", "test")
+        assert sum(splits) == 1
+        self.path = path
+        self.resize_res = resize_res
+        self.size_crop = size_crop
+
+        self.sizing = Compose(
+            [Resize(self.resize_res),
+             CenterCrop(self.size_crop)])
+
+        with open(Path(self.path, "seeds_pair.json")) as f:
+            self.seeds = json.load(f)
+
+        split_0, split_1 = {
+            "train": (0.0, splits[0]),
+            "val": (splits[0], splits[0] + splits[1]),
+            "test": (splits[0] + splits[1], 1.0),
+        }[split]
+
+        idx_0 = math.floor(split_0 * len(self.seeds))
+        idx_1 = math.floor(split_1 * len(self.seeds))
+        self.seeds = self.seeds[idx_0:idx_1]
+
+    def __len__(self) -> int:
+        return len(self.seeds)
+
+    def __getitem__(self, i: int):
+        name = self.seeds[i]
+        path_gt = join(self.path, "train200T512x512", name)
+        path_re = join(self.path, "train200T512x512_re", name)
+
+        img_input = Image.open(path_re).convert('RGB')  # I_re
+        img_gt = Image.open(path_gt).convert('RGB')  # I_gt
+
+        # Never use random crop
+        # If do, change logic the random transformation at onece
+        img_input = self.sizing(img_input)
+        img_gt = self.sizing(img_gt)
+
+        img_input = np.array(img_input).astype(np.float32) / 255 * 2 - 1
+        img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
+
+        return dict(image=img_gt, lf=img_input)
+
+
 class FusionOpenImageDataset(Dataset):
 
     def __init__(
@@ -53,7 +108,7 @@ class FusionOpenImageDataset(Dataset):
 
         self.sizing = Compose(
             [Resize(self.resize_res),
-             RandomCrop(self.size_crop)])
+             CenterCrop(self.size_crop)])
 
         with open(Path(self.path, "seeds.json")) as f:
             self.seeds = json.load(f)
@@ -125,7 +180,7 @@ class FusionOpenImageDataset(Dataset):
         img_input = np.array(img_input).astype(np.float32) / 255 * 2 - 1
         img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
 
-        return dict(image=img_gt, lf=img_input)
+        return dict(image=img_gt, lf=img_input, path=path)
 
 
 class FusionOpenImageFeatDataset(Dataset):
