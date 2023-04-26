@@ -688,7 +688,8 @@ if __name__ == "__main__":
         else:
             callbacks_cfg = OmegaConf.create()
 
-        if 'metrics_over_trainsteps_checkpoint' in callbacks_cfg:
+        # if 'metrics_over_trainsteps_checkpoint' in callbacks_cfg:
+        if True:
             print(
                 'Caution: Saving checkpoints every n train steps without deleting. This might require some free space.'
             )
