@@ -1,17 +1,16 @@
 model:
   base_learning_rate: 4.5e-6
-  target: ldm.models.autounet_a.AutoUNet_A
+  target: ldm.models.shortcut.ShortcutNet
   params:
     monitor: "val/rec_loss"
     ckpt_path: "models/first_stage_models/kl-f8/model.ckpt"
     embed_dim: 4
     lossconfig:
-      target: ldm.modules.losses.LPIPSWithDiscriminator
+      target: ldm.modules.losses.EncoderLoss
       params:
-        disc_start: 50001
-        kl_weight: 0.000001
-        disc_weight: 0.5
-
+        pixelloss_weight: 1.0
+        perceptual_weight: 0.0
+        feature_weight: 0.0
     ddconfig:
       double_z: True
       z_channels: 4
@@ -27,40 +26,23 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 12
-    num_workers: 8
+    batch_size: 6
+    num_workers: 6
     train:
-      target: ldm.data.openimage.FusionOpenImageDataset
+      target: ldm.data.openimage.FusionOpenImagePairDataset
       params:
-        path: DATASET/openimage
+        path: DATASET/openimage_pair_a
         split: train
         resize_res: 512
         size_crop: 256
-        filter_d: 15
-        filter_sigmaColor: 70
-        filter_sigmaSpace: 70
-        noise_min: 0.2
-        noise_max: 0.5
-        blur_kenel: 7
-        blur_sigma_min: 5.0
-        blur_sigma_max: 7.0
-        targets: [noise]
     validation:
-      target: ldm.data.openimage.FusionOpenImageDataset
+      target: ldm.data.openimage.FusionOpenImagePairDataset
       params:
-        path: DATASET/openimage
+        path: DATASET/openimage_pair_a
         split: val
         resize_res: 512
         size_crop: 256
-        filter_d: 15
-        filter_sigmaColor: 70
-        filter_sigmaSpace: 70
-        noise_min: 0.2
-        noise_max: 0.5
-        blur_kenel: 7
-        blur_sigma_min: 5.0
-        blur_sigma_max: 7.0
-        targets: [noise]
+
 lightning:
   callbacks:
     image_logger:
