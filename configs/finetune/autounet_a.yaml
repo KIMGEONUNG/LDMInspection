@@ -31,17 +31,19 @@ data:
     batch_size: 6
     num_workers: 6
     train:
-      target: ldm.data.openimage.FusionOpenImagePairDataset
+      target: ldm.data.openimage_a.OpenImagePairDataset
       params:
-        path: DATASET/openimage_pair_a
-        split: train
+        path_gt: DATASET/openimage/gt512x512
+        path_in: DATASET/openimage/nafnet_blur51/train
+        path_idx: indices/nafnet_blur51_train.txt
         resize_res: 512
         size_crop: 128
     validation:
-      target: ldm.data.openimage.FusionOpenImagePairDataset
+      target: ldm.data.openimage_a.OpenImagePairDataset
       params:
-        path: DATASET/openimage_pair_a
-        split: val
+        path_gt: DATASET/openimage/gt512x512
+        path_in: DATASET/openimage/nafnet_blur51/valid
+        path_idx: indices/nafnet_blur51_valid.txt
         resize_res: 512
         size_crop: 128
 
