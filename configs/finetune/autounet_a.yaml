@@ -37,7 +37,7 @@ data:
         path_in: DATASET/openimage/nafnet_blur51/train
         path_idx: indices/nafnet_blur51_train.txt
         resize_res: 512
-        size_crop: 128
+        size_crop: 256
     validation:
       target: ldm.data.openimage_a.OpenImagePairDataset
       params:
@@ -45,7 +45,7 @@ data:
         path_in: DATASET/openimage/nafnet_blur51/valid
         path_idx: indices/nafnet_blur51_valid.txt
         resize_res: 512
-        size_crop: 128
+        size_crop: 256
 
 lightning:
   callbacks:
