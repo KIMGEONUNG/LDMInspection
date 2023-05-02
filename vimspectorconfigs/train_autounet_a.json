@@ -1,0 +1,33 @@
+{
+  "configurations": {
+    "run": {
+      "adapter": "debugpy",
+      "configuration": {
+        "request": "launch",
+        "type": "python",
+        "cwd": "${workspaceRoot}",
+        "program": "main.py",
+        "args": [
+          "--base",
+          "configs/finetune/autounet_a.yaml",
+          "-t",
+          "--gpus",
+          "0,"
+        ],
+        "stopOnEntry": true,
+        "console": "integratedTerminal",
+        "env": {
+          "CUDA_VISIBLE_DEVICES": "0"
+        },
+        "justMyCode": true
+      },
+      "breakpoints": {
+        "exception": {
+          "raised": "N",
+          "uncaught": "",
+          "userUnhandled": ""
+        }
+      }
+    }
+  }
+}
