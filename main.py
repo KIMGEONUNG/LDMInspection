@@ -327,7 +327,7 @@ class ImageLogger(Callback):
                  rescale=True,
                  disabled=False,
                  log_on_batch_idx=False,
-                 log_first_step=False,
+                 log_first_step=True,
                  log_images_kwargs=None):
         super().__init__()
         self.rescale = rescale
@@ -664,7 +664,7 @@ if __name__ == "__main__":
                 "params": {
                     "batch_frequency": 750,
                     "max_images": 4,
-                    "log_first_step": False,
+                    "log_first_step": True,
                     "clamp": True
                 }
             },
