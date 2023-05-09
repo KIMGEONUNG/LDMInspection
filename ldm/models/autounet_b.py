@@ -114,7 +114,7 @@ class AutoUNet_B(pl.LightningModule):
         return dec
 
     def forward(self, x, sample_posterior=False):
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             posterior, _ = self.encode(x)
             if sample_posterior:
                 z = posterior.sample()
@@ -122,24 +122,24 @@ class AutoUNet_B(pl.LightningModule):
                 z = posterior.mode()
             dec = self.decode_fix(z)
             return dec, posterior
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             raise AssertionError
-        elif self.type == "joint":
+        elif self.target == "joint":
             raise AssertionError
 
         raise AssertionError
 
     def get_input(self, batch, k):
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             x = batch[k]
             if len(x.shape) == 3:
                 x = x[..., None]
             x = x.permute(0, 3, 1,
                           2).to(memory_format=torch.contiguous_format).float()
             return x
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             raise AssertionError
-        elif self.type == "joint":
+        elif self.target == "joint":
             raise AssertionError
         raise AssertionError
 
@@ -148,11 +148,11 @@ class AutoUNet_B(pl.LightningModule):
         img_gt = self.get_input(batch, self.image_key)
         img_lf = self.get_input(batch, "lf")
 
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             reconstructions, posterior = self(img_lf)
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             raise AssertionError
-        elif self.type == "joint":
+        elif self.target == "joint":
             raise AssertionError
 
         if optimizer_idx == 0:
@@ -206,11 +206,11 @@ class AutoUNet_B(pl.LightningModule):
         img_gt = self.get_input(batch, self.image_key)
         img_lf = self.get_input(batch, "lf")
 
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             reconstructions, posterior, intermids = self(img_lf)
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             raise AssertionError
-        elif self.type == "joint":
+        elif self.target == "joint":
             raise AssertionError
 
         aeloss, log_dict_ae = self.loss(img_gt,
@@ -237,21 +237,21 @@ class AutoUNet_B(pl.LightningModule):
     def configure_optimizers(self):
         lr = self.learning_rate
 
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             opt = torch.optim.Adam(
                 list(self.shortcut.parameters()) +
                 list(self.quant_conv.parameters()),
                 lr=lr,
                 betas=(0.5, 0.9),
             )
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             opt = torch.optim.Adam(
                 list(self.fusion.parameters()) +
                 list(self.post_quant_conv.parameters()),
                 lr=lr,
                 betas=(0.5, 0.9),
             )
-        elif self.type == "joint":
+        elif self.target == "joint":
             opt = torch.optim.Adam(
                 list(self.shortcut.parameters()) +
                 list(self.quant_conv.parameters()) +
@@ -269,11 +269,11 @@ class AutoUNet_B(pl.LightningModule):
         return [opt, opt_disc], []
 
     def get_last_layer(self):
-        if self.type == "shortcut":
+        if self.target == "shortcut":
             return self.decoder_fix.conv_out.weight
-        elif self.type == "fusion":
+        elif self.target == "fusion":
             return self.fusion.conv_out.weight
-        elif self.type == "joint":
+        elif self.target == "joint":
             return self.fusion.conv_out.weight
         raise AssertionError
 
