@@ -283,11 +283,10 @@ class AutoUNet_B(pl.LightningModule):
         gt = self.get_input(batch, self.image_key).to(self.device)
         lf = self.get_input(batch, "lf").to(self.device)
 
-        x_hat, x_hat_prime, *_ = self(lf, gt)
+        x_hat  = self(lf, gt)
         log["A_lf"] = lf
         log["B_gt"] = gt
         log["C_x_hat"] = x_hat
-        log["C_x_hat_prime"] = x_hat_prime
 
         return log
 
