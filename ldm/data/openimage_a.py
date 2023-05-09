@@ -91,7 +91,7 @@ class OpenImageTripleDataset(Dataset):
 
         img_in = Image.open(path_in).convert('RGB')  # I_re
         img_gt = Image.open(path_gt).convert('RGB')  # I_gt
-        z = Image.open(path_z)
+        z = torch.load(path_z)
 
         # MERGE & CROP & AND & SPLIT
         merge = torch.cat([ToTensor()(img_in), ToTensor()(img_gt)])
