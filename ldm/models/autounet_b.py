@@ -207,7 +207,7 @@ class AutoUNet_B(pl.LightningModule):
         img_lf = self.get_input(batch, "lf")
 
         if self.target == "shortcut":
-            reconstructions, posterior, intermids = self(img_lf)
+            reconstructions, posterior = self(img_lf)
         elif self.target == "fusion":
             raise AssertionError
         elif self.target == "joint":
