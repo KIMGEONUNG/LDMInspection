@@ -48,8 +48,8 @@ class AutoUNet_B(pl.LightningModule):
         self.target = target
 
         # LOAD MODEL
-        self.shortcut = EncoderF(**ddconfig)
-        self.fusion = DecoderF(**ddconfig)
+        self.encoder = EncoderF(**ddconfig)
+        self.decoder = DecoderF(**ddconfig)
         self.loss = instantiate_from_config(lossconfig)
         self.quant_conv = torch.nn.Conv2d(2 * ddconfig["z_channels"],
                                           2 * embed_dim, 1)
@@ -81,9 +81,9 @@ class AutoUNet_B(pl.LightningModule):
         self.load_state_dict(sd, strict=False)
 
         # COPY WIEIGHT
-        self.encoder_fix.load_state_dict(self.shortcut.state_dict(),
+        self.encoder_fix.load_state_dict(self.encoder.state_dict(),
                                          strict=True)
-        self.decoder_fix.load_state_dict(self.fusion.state_dict(),
+        self.decoder_fix.load_state_dict(self.decoder.state_dict(),
                                          strict=False)
         self.quant_conv_fix.load_state_dict(self.quant_conv.state_dict(),
                                             strict=True)
@@ -103,17 +103,17 @@ class AutoUNet_B(pl.LightningModule):
         return dec
 
     def encode(self, x):
-        h, intermids = self.shortcut(x)
+        h, intermids = self.encoder(x)
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)
         return posterior, intermids
 
     def decode(self, z, intermids):
         z = self.post_quant_conv(z)
-        dec = self.fusion(z, intermids)
+        dec = self.decoder(z, intermids)
         return dec
 
-    def forward(self, x, sample_posterior=False):
+    def forward(self, x, sample_posterior=True):
         if self.target == "shortcut":
             posterior, _ = self.encode(x)
             if sample_posterior:
@@ -239,23 +239,23 @@ class AutoUNet_B(pl.LightningModule):
 
         if self.target == "shortcut":
             opt = torch.optim.Adam(
-                list(self.shortcut.parameters()) +
+                list(self.encoder.parameters()) +
                 list(self.quant_conv.parameters()),
                 lr=lr,
                 betas=(0.5, 0.9),
             )
         elif self.target == "fusion":
             opt = torch.optim.Adam(
-                list(self.fusion.parameters()) +
+                list(self.decoder.parameters()) +
                 list(self.post_quant_conv.parameters()),
                 lr=lr,
                 betas=(0.5, 0.9),
             )
         elif self.target == "joint":
             opt = torch.optim.Adam(
-                list(self.shortcut.parameters()) +
+                list(self.encoder.parameters()) +
                 list(self.quant_conv.parameters()) +
-                list(self.fusion.parameters()) +
+                list(self.decoder.parameters()) +
                 list(self.post_quant_conv.parameters()),
                 lr=lr,
                 betas=(0.5, 0.9),
@@ -272,9 +272,9 @@ class AutoUNet_B(pl.LightningModule):
         if self.target == "shortcut":
             return self.decoder_fix.conv_out.weight
         elif self.target == "fusion":
-            return self.fusion.conv_out.weight
+            return self.decoder.conv_out.weight
         elif self.target == "joint":
-            return self.fusion.conv_out.weight
+            return self.decoder.conv_out.weight
         raise AssertionError
 
     @torch.no_grad()
