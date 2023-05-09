@@ -283,10 +283,16 @@ class AutoUNet_B(pl.LightningModule):
         gt = self.get_input(batch, self.image_key).to(self.device)
         lf = self.get_input(batch, "lf").to(self.device)
 
-        x_hat  = self(lf, gt)
+        if self.target == "shortcut":
+            reconstructions, posterior = self(lf)
+        elif self.target == "fusion":
+            raise AssertionError
+        elif self.target == "joint":
+            raise AssertionError
+
         log["A_lf"] = lf
         log["B_gt"] = gt
-        log["C_x_hat"] = x_hat
+        log["C_x_hat"] = reconstructions
 
         return log
 
