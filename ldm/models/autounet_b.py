@@ -144,6 +144,8 @@ class AutoUNet_B(pl.LightningModule):
             x = batch[k]
             if len(x.shape) == 3:
                 x = x[..., None]
+            if k == "z_hat":
+                return x
             x = x.permute(0, 3, 1,
                           2).to(memory_format=torch.contiguous_format).float()
             return x
