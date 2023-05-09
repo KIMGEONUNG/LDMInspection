@@ -143,7 +143,7 @@ class AutoUNet_B(pl.LightningModule):
         elif self.target == "fusion":
             x = batch[k]
             if k == "z_hat":
-                return x[None, ...]
+                return x.to(memory_format=torch.contiguous_format)
             if len(x.shape) == 3:
                 x = x[..., None]
             x = x.permute(0, 3, 1,
