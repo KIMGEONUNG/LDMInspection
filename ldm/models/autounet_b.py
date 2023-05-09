@@ -25,7 +25,7 @@ def zero_module(module):
 class AutoUNet_B(pl.LightningModule):
     """
     Handle three types
-    - shorcut
+    - shortcut
     - fusion
     - joint
     """
@@ -42,7 +42,7 @@ class AutoUNet_B(pl.LightningModule):
         monitor=None,
     ):
         assert ddconfig["double_z"]
-        assert target in ["shorcut", "fusion", "joint"]
+        assert target in ["shortcut", "fusion", "joint"]
         super().__init__()
         self.image_key = image_key
         self.target = target
@@ -114,7 +114,7 @@ class AutoUNet_B(pl.LightningModule):
         return dec
 
     def forward(self, x, sample_posterior=False):
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             posterior, _ = self.encode(x)
             if sample_posterior:
                 z = posterior.sample()
@@ -130,7 +130,7 @@ class AutoUNet_B(pl.LightningModule):
         raise AssertionError
 
     def get_input(self, batch, k):
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             x = batch[k]
             if len(x.shape) == 3:
                 x = x[..., None]
@@ -148,7 +148,7 @@ class AutoUNet_B(pl.LightningModule):
         img_gt = self.get_input(batch, self.image_key)
         img_lf = self.get_input(batch, "lf")
 
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             reconstructions, posterior = self(img_lf)
         elif self.type == "fusion":
             raise AssertionError
@@ -206,7 +206,7 @@ class AutoUNet_B(pl.LightningModule):
         img_gt = self.get_input(batch, self.image_key)
         img_lf = self.get_input(batch, "lf")
 
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             reconstructions, posterior, intermids = self(img_lf)
         elif self.type == "fusion":
             raise AssertionError
@@ -237,7 +237,7 @@ class AutoUNet_B(pl.LightningModule):
     def configure_optimizers(self):
         lr = self.learning_rate
 
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             opt = torch.optim.Adam(
                 list(self.shortcut.parameters()) +
                 list(self.quant_conv.parameters()),
@@ -269,7 +269,7 @@ class AutoUNet_B(pl.LightningModule):
         return [opt, opt_disc], []
 
     def get_last_layer(self):
-        if self.type == "shorcut":
+        if self.type == "shortcut":
             return self.decoder_fix.conv_out.weight
         elif self.type == "fusion":
             return self.fusion.conv_out.weight
