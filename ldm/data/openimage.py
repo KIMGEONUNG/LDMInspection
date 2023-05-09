@@ -223,9 +223,7 @@ class FusionOpenImageFeatDataset(Dataset):
 
         img_gt = Image.open(path_gt).convert('RGB')  # GT
         img_lf = Image.open(path_lf).convert('RGB')  # LF, actually bf
-        feat = torch.load(path_feat)
-        if len(feat.shape) == 4:
-            feat = feat[0]
+        feat = torch.load(path_feat)[0]
 
         img_gt = np.array(img_gt).astype(np.float32) / 255 * 2 - 1
         img_lf = np.array(img_lf).astype(np.float32) / 255 * 2 - 1
