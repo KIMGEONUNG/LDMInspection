@@ -91,7 +91,7 @@ class OpenImageTripleDataset(Dataset):
 
         img_in = Image.open(path_in).convert('RGB')  # I_re
         img_gt = Image.open(path_gt).convert('RGB')  # I_gt
-        z = torch.load(path_z)
+        z = torch.load(path_z) / 0.18215
         if len(z.shape) == 4:
             z = z[0]
 
