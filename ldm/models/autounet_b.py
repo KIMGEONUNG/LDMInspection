@@ -113,7 +113,7 @@ class AutoUNet_B(pl.LightningModule):
         dec = self.decoder(z, intermids)
         return dec
 
-    def forward(self, x, sample_posterior=True):
+    def forward(self, x, sample_posterior=True, **kwargs):
         if self.target == "shortcut":
             posterior, _ = self.encode(x)
             if sample_posterior:
@@ -123,7 +123,10 @@ class AutoUNet_B(pl.LightningModule):
             dec = self.decode_fix(z)
             return dec, posterior
         elif self.target == "fusion":
-            raise AssertionError
+            _, intermids = self.encode(x)
+            z_hat = kwargs['z_hat']
+            dec = self.decode(z_hat, intermids)
+            return dec
         elif self.target == "joint":
             raise AssertionError
 
@@ -138,7 +141,12 @@ class AutoUNet_B(pl.LightningModule):
                           2).to(memory_format=torch.contiguous_format).float()
             return x
         elif self.target == "fusion":
-            raise AssertionError
+            x = batch[k]
+            if len(x.shape) == 3:
+                x = x[..., None]
+            x = x.permute(0, 3, 1,
+                          2).to(memory_format=torch.contiguous_format).float()
+            return x
         elif self.target == "joint":
             raise AssertionError
         raise AssertionError
@@ -151,7 +159,9 @@ class AutoUNet_B(pl.LightningModule):
         if self.target == "shortcut":
             reconstructions, posterior = self(img_lf)
         elif self.target == "fusion":
-            raise AssertionError
+            z_hat = self.get_input(batch, "z_hat")
+            reconstructions = self(img_lf, z_hat=z_hat)
+            posterior=None
         elif self.target == "joint":
             raise AssertionError
 
@@ -209,7 +219,9 @@ class AutoUNet_B(pl.LightningModule):
         if self.target == "shortcut":
             reconstructions, posterior = self(img_lf)
         elif self.target == "fusion":
-            raise AssertionError
+            z_hat = self.get_input(batch, "z_hat")
+            reconstructions = self(img_lf, z_hat=z_hat)
+            posterior=None # Is this right assumption?
         elif self.target == "joint":
             raise AssertionError
 
@@ -286,7 +298,8 @@ class AutoUNet_B(pl.LightningModule):
         if self.target == "shortcut":
             reconstructions, posterior = self(lf)
         elif self.target == "fusion":
-            raise AssertionError
+            z_hat = self.get_input(batch, "z_hat")
+            reconstructions = self(lf, z_hat=z_hat)
         elif self.target == "joint":
             raise AssertionError
 

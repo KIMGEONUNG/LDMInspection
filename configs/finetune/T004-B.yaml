@@ -2,12 +2,12 @@ model:
   base_learning_rate: 4.5e-6
   target: ldm.models.autounet_b.AutoUNet_B
   params:
-    target: shortcut
+    target: fusion
     monitor: "val/rec_loss"
     ckpt_path: "models/first_stage_models/kl-f8/model.ckpt"
     embed_dim: 4
     lossconfig:
-      target: ldm.modules.losses.LPIPSWithDiscriminator
+      target: ldm.modules.losses.LPIPSWithDiscriminatorNoKL
       params:
         disc_start: 50001
         kl_weight: 0.000001
@@ -28,24 +28,26 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 8
-    num_workers: 8
+    batch_size: 4
+    num_workers: 4
     train:
-      target: ldm.data.openimage_a.OpenImagePairDataset
+      target: ldm.data.openimage_a.OpenImageTripleDataset
       params:
         path_gt: DATASET/openimage/gt512x512
         path_in: DATASET/openimage/nafnet_blur31/train
-        path_idx: indices/nafnet_blur31_train.txt
+        path_z: DATASET/openimage/I_feat/blur31/train
+        path_idx: indices/nafnet_blur31_feat_train.txt
         resize_res: 512
-        size_crop: 256
+        size_crop: 512
     validation:
-      target: ldm.data.openimage_a.OpenImagePairDataset
+      target: ldm.data.openimage_a.OpenImageTripleDataset
       params:
         path_gt: DATASET/openimage/gt512x512
         path_in: DATASET/openimage/nafnet_blur31/valid
-        path_idx: indices/nafnet_blur31_valid.txt
+        path_z: DATASET/openimage/I_feat/blur31/valid
+        path_idx: indices/nafnet_blur31_feat_valid.txt
         resize_res: 512
-        size_crop: 256
+        size_crop: 512
 
 lightning:
   callbacks:

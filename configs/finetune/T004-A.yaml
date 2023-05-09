@@ -35,7 +35,7 @@ data:
       params:
         path_gt: DATASET/openimage/gt512x512
         path_in: DATASET/openimage/nafnet_blur31/train
-        path_idx: indices/nafnet_blur51_train.txt
+        path_idx: indices/nafnet_blur31_train.txt
         resize_res: 512
         size_crop: 256
     validation:
@@ -43,7 +43,7 @@ data:
       params:
         path_gt: DATASET/openimage/gt512x512
         path_in: DATASET/openimage/nafnet_blur31/valid
-        path_idx: indices/nafnet_blur51_valid.txt
+        path_idx: indices/nafnet_blur31_valid.txt
         resize_res: 512
         size_crop: 256
 
